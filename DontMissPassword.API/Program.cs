@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -154,6 +155,30 @@ DotNetEnv.Env.Load();
 //Add Dependency Injection
 builder.Services.AddConfig(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
+//Redis
+var redisConfig = builder.Configuration.GetSection("Redis");
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+{
+    var host = redisConfig["Configuration"];
+    var port = redisConfig["Port"] ?? "6379";
+    var password = redisConfig["Password"];
+
+    var options = new ConfigurationOptions
+    {
+        EndPoints = { $"{host}:{port}" },
+        Password = password,
+        Ssl = true,
+        SslHost = host,
+        AbortOnConnectFail = false,
+        ConnectTimeout = 10000,
+        SyncTimeout = 10000,
+        KeepAlive = 30,
+        ConnectRetry = 5
+    };
+
+    return ConnectionMultiplexer.Connect(options);
+});
 //mapper configuration
 var mapperConfig = new MapperConfiguration(cfg =>
 {

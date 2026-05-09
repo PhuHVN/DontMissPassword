@@ -33,7 +33,23 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> Register([FromBody] AccountRequest request)
         {
             var result = await _authService.Register(request);
-            return Ok(ApiResponse<AccountResponse>.OkResponse(result, "Registration successful", "201"));
+            return Ok(ApiResponse<string>.OkResponse(request.Email,"Registration successful please check email", "201")); 
+        }
+
+        [HttpPatch("verifyOtp")]
+        [SwaggerOperation(summary: "Verify the user's email using OTP")]
+        public async Task<IActionResult> VerifyEmail(VerifyOtpDtos verifyOtp)
+        {
+            await _authService.VerifyEmail(verifyOtp.Email, verifyOtp.Otp);
+            return Ok(ApiResponse<string>.OkResponse(null, "Email verified successfully", "200"));
+        }
+
+        [HttpPost("resendOtp/{email}")]
+        [SwaggerOperation(summary: "Resend OTP to the user's email")]
+        public async Task<IActionResult> ResendOtp([FromRoute] string email)
+        {
+            await _authService.ResendOtpAsync(email);
+            return Ok(ApiResponse<string>.OkResponse(null, "OTP resent successfully", "200"));
         }
 
         [HttpPost("refresh-token/{refreshToken}")]

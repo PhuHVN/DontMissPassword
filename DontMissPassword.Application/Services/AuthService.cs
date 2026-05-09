@@ -14,12 +14,16 @@ namespace DontMissPassword.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IJwtProvider _jwtProvider;
         private readonly IVaultService _vaultService;
+        private readonly IEmailService _emailService;
+        private readonly IRedisService _redisService;
         private readonly IMapper _mapper;
-        public AuthService(IUnitOfWork unitOfWork, IJwtProvider jwtProvider, IVaultService vaultService, IMapper mapper)
+        public AuthService(IUnitOfWork unitOfWork, IJwtProvider jwtProvider, IVaultService vaultService, IEmailService emailService, IRedisService redisService, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _jwtProvider = jwtProvider;
             _vaultService = vaultService;
+            _emailService = emailService;
+            _redisService = redisService;
             _mapper = mapper;
         }
         public async Task<AuthResponse> LoginEmail(AuthRequest request)
@@ -29,7 +33,7 @@ namespace DontMissPassword.Application.Services
                 throw new ArgumentException("Email and password must be provided.");
             }
             var requestEmail = request.Email.Trim().ToLower();
-            var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail);
+            var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail && x.Status == Domain.Enums.StatusEnum.Active);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
             {
@@ -62,7 +66,7 @@ namespace DontMissPassword.Application.Services
             {
                 throw new ArgumentException("Email, password and full name must be provided.");
             }
-            var requestEmail = request.Email.Trim().ToLower();
+            var requestEmail = request.Email.Trim();
             var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail && x.Status == Domain.Enums.StatusEnum.Active);
             if (existingUser != null)
             {
@@ -81,23 +85,26 @@ namespace DontMissPassword.Application.Services
                 Email = requestEmail,
                 Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName,
-                Status = Domain.Enums.StatusEnum.Active,
+                Status = Domain.Enums.StatusEnum.Pending,
                 CreatedAt = DateTime.UtcNow
             };
-            var vaultRequest = new VaultRequest
-            {
-                AccountId = newUser.Id,
-            };
+
+            var otp = _redisService.GenerateOTP();
+
             await _unitOfWork.BeginTransactionAsync();
             try
             {
-                
-                
+
                 await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
                 await _unitOfWork.SaveChangesAsync();
                 // Create vault for the new user
-                await _vaultService.CreateVault(vaultRequest);
+                await _vaultService.CreateVault(new VaultRequest
+                {
+                    AccountId = newUser.Id,
+                });
                 await _unitOfWork.CommitTransactionAsync();
+                await _emailService.SendOtpAsync(requestEmail, otp);
+                await _redisService.StoreOtpAsync(requestEmail, otp, TimeSpan.FromMinutes(5));
                 return _mapper.Map<AccountResponse>(newUser);
             }
             catch (Exception ex)
@@ -106,6 +113,43 @@ namespace DontMissPassword.Application.Services
                 throw new ArgumentException("An error occurred while registering the account.", ex);
             }
 
+        }
+        public async Task ResendOtpAsync(string email)
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                throw new ArgumentException("Email must be provided.");
+            }
+            var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == email && x.Status == Domain.Enums.StatusEnum.Pending);
+            if (user == null)
+            {
+                throw new ArgumentException("Account not found or already verified.");
+            }
+            await _redisService.RemoveOtpAsync(email);
+            var otp = _redisService.GenerateOTP();
+            await _emailService.SendOtpAsync(email, otp);
+            await _redisService.StoreOtpAsync(email, otp, TimeSpan.FromMinutes(5));
+        }
+        public async Task VerifyEmail(string email, string otp)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(otp))
+            {
+                throw new ArgumentException("Email and OTP must be provided.");
+            }
+            var storedOtp = await _redisService.RetrieveOtpAsync(email);
+            if (storedOtp == null || storedOtp != otp)
+            {
+                throw new UnauthorizedAccessException("Invalid OTP.");
+            } 
+            var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == email && x.Status == Domain.Enums.StatusEnum.Pending);
+            if (user == null)
+            {
+                throw new ArgumentException("Account not found or already verified.");
+            }
+            user.Status = Domain.Enums.StatusEnum.Active;
+            await _unitOfWork.GetRepository<Account>().UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+            await _redisService.RemoveOtpAsync(email);
         }
 
         public async Task<AuthResponse> RefreshToken(string refreshToken)
