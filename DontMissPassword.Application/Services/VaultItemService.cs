@@ -60,7 +60,7 @@ namespace DontMissPassword.Application.Services
             };
             await _unitOfWork.GetRepository<VaultItem>().AddAsync(vaultItem);
             await _unitOfWork.SaveChangesAsync();
-            return _mapper.Map<ItemResponse>(request);
+            return _mapper.Map<ItemResponse>(vaultItem);
 
         }
 

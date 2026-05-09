@@ -5,6 +5,7 @@ using DontMissPassword.Domain.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Security.Cryptography;
 
 namespace DontMissPassword.API.Controllers
 {
@@ -38,6 +39,7 @@ namespace DontMissPassword.API.Controllers
         [SwaggerOperation(summary: "Get all accounts", description: "Retrieves a paginated list of all accounts.")]
         public async Task<IActionResult> GetAllAccounts(int pageIndex = 1, int pageSize = 10)
         {
+         
             var result = await _accountService.GetAllAccounts(pageIndex, pageSize);
             return Ok(ApiResponse<BasePaginatedList<AccountResponse>>.OkResponse(result, "Accounts retrieved successfully.", "200"));
         }
@@ -57,5 +59,6 @@ namespace DontMissPassword.API.Controllers
             await _accountService.DeleteAccount(id);
             return NoContent();
         }
+
     }
 }

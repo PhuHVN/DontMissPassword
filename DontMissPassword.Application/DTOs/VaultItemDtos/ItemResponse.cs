@@ -9,7 +9,7 @@ namespace DontMissPassword.Application.DTOs.VaultItemDtos
 {
     public class ItemResponse
     {
-        public string Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
