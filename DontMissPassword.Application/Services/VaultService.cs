@@ -21,16 +21,11 @@ namespace DontMissPassword.Application.Services
             {
                 throw new ArgumentNullException(nameof(request.AccountId));
             }
-            var account = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Id == request.AccountId && x.Status == StatusEnum.Active);
-            if (account == null)
-            {
-                throw new ArgumentNullException(nameof(account));
-            }
+           
             var existingVault = await _unitOfWork.GetRepository<Vault>().FindAsync(x => x.AccountId == request.AccountId);
-            // return if vault already exists for the account, as each account can have only one vault
             if (existingVault != null)
             {
-                return;
+                throw new Exception("Vault already exists");
             }
             var vault = new Vault
             {

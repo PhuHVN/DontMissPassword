@@ -12,6 +12,8 @@ namespace DontMissPassword.Application.Interfaces
     {
         Task<AuthResponse> LoginEmail(AuthRequest request);
         Task<AccountResponse> Register(AccountRequest request);
+        Task VerifyEmail(string email, string otp);
+        Task ResendOtpAsync(string email);
         Task<AuthResponse> RefreshToken(string refreshToken);
     }
 }

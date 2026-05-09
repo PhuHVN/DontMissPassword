@@ -7,19 +7,11 @@ using System.Threading.Tasks;
 
 namespace DontMissPassword.Domain.Enums
 {
-    public enum RoleEnum
-    {
-        [Display(Name = "Admin")]
-        Admin,
-        [Display(Name = "Customer")]
-        Customer,
-        [Display(Name = "Seller")]
-        Seller 
-    }
     public enum StatusEnum
     {
         Inactive = 0,
         Active = 1,
+        Pending = 2,
     }
 
 }

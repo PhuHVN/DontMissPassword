@@ -1,5 +1,6 @@
 ﻿
 using DontMissPassword.Application.Interfaces;
+using DontMissPassword.Application.Services;
 using DontMissPassword.Domain.Abstractions;
 using DontMissPassword.Infrastructure.Implemention;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,8 @@ namespace DontMissPassword.Infrastructure
             services.AddLogging();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IJwtProvider, JwtProvider>();
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IRedisService, OtpCacheService>();
         }
 
     }
