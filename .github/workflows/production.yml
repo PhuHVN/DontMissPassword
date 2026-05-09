@@ -1,0 +1,82 @@
+name: Docker CI/CD for .NET 8 API
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Build, Test & Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup .NET 8
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # 3. Cache NuGet (tăng tốc build)
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      # 4. Restore dependencies
+      - name: Restore
+        run: dotnet restore
+
+      # 5. Build
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      # 6. Test
+      - name: Run Tests
+        run: dotnet test --no-build --verbosity normal
+
+      # 7. Login DockerHub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 8. Set image variables
+      - name: Set image name & tag
+        id: vars
+        run: |
+          echo "IMAGE=phuho04/shuppemarket-api" >> $GITHUB_ENV
+          echo "TAG=latest" >> $GITHUB_ENV
+          echo "SHA_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      # 9. Build image
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE:$TAG .
+          docker tag $IMAGE:$TAG $IMAGE:$SHA_TAG
+
+      # 10. Push image
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE:$TAG
+          docker push $IMAGE:$SHA_TAG
+
+  # ============================================
+  #  DEPLOY — để trống theo yêu cầu
+  # ============================================
+  deploy:
+    name: Deploy to production server
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Placeholder for future deployment
+        run: echo "🟨 Deployment step is empty. Add SSH/Kubernetes/Cloud Run/Azure script here."
