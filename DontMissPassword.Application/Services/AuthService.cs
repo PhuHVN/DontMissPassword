@@ -91,9 +91,12 @@ namespace DontMissPassword.Application.Services
             await _unitOfWork.BeginTransactionAsync();
             try
             {
+                
+                
+                await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
+                await _unitOfWork.SaveChangesAsync();
                 // Create vault for the new user
                 await _vaultService.CreateVault(vaultRequest);
-                await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
                 await _unitOfWork.CommitTransactionAsync();
                 return _mapper.Map<AccountResponse>(newUser);
             }

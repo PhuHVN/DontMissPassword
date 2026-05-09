@@ -1,6 +1,7 @@
 using AutoMapper;
 using DontMissPassword.API;
 using DontMissPassword.Application.DTOs;
+using DontMissPassword.Domain.Enums.EnumConfig;
 using DontMissPassword.Infrastructure.DatabaseSettings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,12 @@ using System.Security.Claims;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+//
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(
+        new ExclusiveEnumConverterFactory(excludeFromString: new[] { typeof(StatusCodeHelper) }));
+});
 
 //Cors
 builder.Services.AddCors(options =>

@@ -1,5 +1,8 @@
 ﻿using AutoMapper;
+using DontMissPassword.Application.DTOs.AccountDtos;
+using DontMissPassword.Application.DTOs.VaultItemDtos;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Entities;
 
 namespace DontMissPassword.Application.DTOs
 {
@@ -11,6 +14,9 @@ namespace DontMissPassword.Application.DTOs
             CreateMap(typeof(BasePaginatedList<>), typeof(BasePaginatedList<>))
                 .ConvertUsing(typeof(BasePaginatedListConverter<,>));
 
+            //
+            CreateMap<Account, AccountResponse>();
+            CreateMap<VaultItem, ItemResponse>();
         }
         public class BasePaginatedListConverter<TSource, TDestination> : ITypeConverter<BasePaginatedList<TSource>, BasePaginatedList<TDestination>>
         {

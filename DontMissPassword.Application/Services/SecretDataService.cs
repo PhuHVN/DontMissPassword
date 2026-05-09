@@ -52,7 +52,7 @@ namespace DontMissPassword.Application.Services
                 aes.GenerateIV();
                 byte[] iv = aes.IV;
 
-                ICryptoTransform cryptoTransform = aes.CreateDecryptor(aes.Key, iv);
+                ICryptoTransform cryptoTransform = aes.CreateEncryptor(aes.Key, iv);
                 using (MemoryStream ms = new MemoryStream()) {
                     using (CryptoStream cs = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write))
                     {

@@ -16,6 +16,7 @@ namespace DontMissPassword.Domain.Entities
         public DateTime? LastUpdatedAt { get; set; }
         public StatusEnum Status { get; set; } = StatusEnum.Active;
         // Navigation property 
-        public RefreshToken RefreshToken { get; set; } = null!;
+        public ICollection<RefreshToken> RefreshToken { get; set; } = new List<RefreshToken>();
+        
     }
 }
