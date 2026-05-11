@@ -20,17 +20,17 @@ namespace DontMissPassword.Application.Services
 
         public async Task<Result<AccountResponse>> CreateAccount(AccountRequest request)
         {
-            if (request.Email == null || request.Password == null || request.FullName == null)
+            if (request.UsernameOrEmail == null || request.Password == null || request.FullName == null)
             {
                 return Result<AccountResponse>.Fail("InvalidInput", "Email, Password and FullName are required.");
             }
-            if (Regex.IsMatch(request.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            if (Regex.IsMatch(request.UsernameOrEmail, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
                 throw new ArgumentException("Invalid email format.");
             }
             var account = new Account
             {
-                Email = request.Email,
+                Email = request.UsernameOrEmail,
                 Password = request.Password,
                 FullName = request.FullName,
                 Status = Domain.Enums.StatusEnum.Active

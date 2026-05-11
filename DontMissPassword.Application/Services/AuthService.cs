@@ -61,18 +61,45 @@ namespace DontMissPassword.Application.Services
                 RefreshToken = refreshToken
             });
         }
-
+        public async Task<Result<string>> RegisterByUsername(AccountRequest request)
+        {
+            if (request.UsernameOrEmail == null || request.Password == null || request.FullName == null)
+            {
+                return Result<string>.Fail("InvalidInput", "Username, password and full name must be provided.");
+            }
+            var requestUsername = request.UsernameOrEmail.Trim();
+            var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestUsername);
+            if (existingUser != null)
+            {
+                return Result<string>.Fail("EmailAlreadyInUse", "An account with this email already exists.");
+            }
+            if (request.Password.Length < 6)
+            {
+                return Result<string>.Fail("WeakPassword", "Password must be at least 6 characters long.");
+            }
+            var newUser = new Account
+            {
+                Email = requestUsername,
+                Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                FullName = request.FullName,
+                Status = Domain.Enums.StatusEnum.Active,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
+            await _unitOfWork.SaveChangesAsync();
+            return Result<string>.Success(requestUsername);
+        }
         public async Task<Result<string>> Register(AccountRequest request)
         {
-            if (request.Email == null || request.Password == null || request.FullName == null)
+            if (request.UsernameOrEmail == null || request.Password == null || request.FullName == null)
             {
                 return Result<string>.Fail("InvalidInput", "Email, password and full name must be provided.");
             }
-            var requestEmail = request.Email.Trim();
+            var requestEmail = request.UsernameOrEmail.Trim();
             var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail);
             if (existingUser != null && existingUser.Status == StatusEnum.Active)
             {
-                throw new ArgumentException("Email is already in use.");
+                return Result<string>.Fail("EmailAlreadyInUse", "An account with this email already exists.");
             }
             if (existingUser != null && existingUser.Status == StatusEnum.Pending)
             {
@@ -91,11 +118,11 @@ namespace DontMissPassword.Application.Services
             //if email not exist, create new account with pending status and send otp to email
             if (!Regex.IsMatch(requestEmail, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
-                throw new ArgumentException("Invalid email format.");
+                return Result<string>.Fail("InvalidEmail", "The email format is invalid.");
             }
             if (request.Password.Length < 6)
             {
-                throw new ArgumentException("Password must be at least 6 characters long.");
+                return Result<string>.Fail("WeakPassword", "Password must be at least 6 characters long.");
             }
             var newUser = new Account
             {
