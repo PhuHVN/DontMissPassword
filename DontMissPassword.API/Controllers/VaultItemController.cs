@@ -40,9 +40,9 @@ namespace DontMissPassword.API.Controllers
             }
 
             // Add security headers to prevent caching of sensitive password data
-            Response.Headers.Add("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-            Response.Headers.Add("Pragma", "no-cache");
-            Response.Headers.Add("Expires", "0");
+            Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
 
             return Ok(ApiResponse<string>.OkResponse(result.Value, "Get decrypted vault items by account login successfully", "200"));
         }
