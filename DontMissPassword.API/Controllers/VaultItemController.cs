@@ -24,25 +24,25 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> GetAllVaultItems(int pageIndex = 1, int pageSize = 10)
         {
             var result = await _service.GetAllVaultItems(pageIndex, pageSize);
-            return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result, "Get all vault items successfully", "200"));
+            return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result.Value, "Get all vault items successfully", "200"));
         }
         [HttpGet]
         public async Task<IActionResult> GetVaultItemsByAccountLogin(int pageIndex = 1, int pageSize = 10)
         {
             var result = await _service.GetVaultItemsByUserLogin(pageIndex, pageSize);
-            return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result, "Get vault items by account login successfully", "200"));
+            return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result.Value, "Get vault items by account login successfully", "200"));
         }
         [HttpGet("decrypt")]
         public async Task<IActionResult> GetDecryptedVaultItemsByAccountLogin(string id)
         {
             var result = await _service.GetPasswordDecrypted(id);
-            return Ok(ApiResponse<string>.OkResponse(result, "Get decrypted vault items by account login successfully", "200"));
+            return Ok(ApiResponse<string>.OkResponse(result.Value, "Get decrypted vault items by account login successfully", "200"));
         }
         [HttpPost]
         public async Task<IActionResult> CreateVaultItem([FromBody] ItemRequest request)
         {
             var result = await _service.CreateVaultItem(request);
-            return Ok(ApiResponse<ItemResponse>.OkResponse(result, "Vault item created successfully", "201"));
+            return Ok(ApiResponse<ItemResponse>.OkResponse(result.Value, "Vault item created successfully", "201"));
         }
     }
 

@@ -2,6 +2,7 @@
 using DontMissPassword.Application.DTOs.AccountDtos;
 using DontMissPassword.Application.Interfaces;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Common.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -24,7 +25,7 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> CreateAccount(AccountRequest request)
         {
             var result = await _accountService.CreateAccount(request);
-            return Ok(ApiResponse<AccountResponse>.OkResponse(result, "Account created successfully.", "201"));
+            return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account created successfully.", "201"));
         }
 
         [HttpGet("{id}")]
@@ -32,7 +33,7 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> GetAccountById(string id)
         {
             var result = await _accountService.GetAccountById(id);
-            return Ok(ApiResponse<AccountResponse>.OkResponse(result, "Account retrieved successfully.", "200"));
+            return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account retrieved successfully.", "200"));
         }
 
         [HttpGet]
@@ -41,7 +42,7 @@ namespace DontMissPassword.API.Controllers
         {
          
             var result = await _accountService.GetAllAccounts(pageIndex, pageSize);
-            return Ok(ApiResponse<BasePaginatedList<AccountResponse>>.OkResponse(result, "Accounts retrieved successfully.", "200"));
+            return Ok(ApiResponse<BasePaginatedList<AccountResponse>>.OkResponse(result.Value, "Accounts retrieved successfully.", "200"));
         }
 
         [HttpPut]
@@ -49,7 +50,7 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> UpdateAccount(AccountRequest request)
         {
             var result = await _accountService.UpdateAccount(request);
-            return Ok(ApiResponse<AccountResponse>.OkResponse(result, "Account updated successfully.", "200"));
+            return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account updated successfully.", "200"));
         }
 
         [HttpDelete]

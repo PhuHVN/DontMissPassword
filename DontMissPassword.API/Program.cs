@@ -179,6 +179,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 
     return ConnectionMultiplexer.Connect(options);
 });
+
 //mapper configuration
 var mapperConfig = new MapperConfiguration(cfg =>
 {

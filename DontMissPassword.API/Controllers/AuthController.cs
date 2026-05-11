@@ -25,7 +25,7 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> Login([FromBody] AuthRequest request)
         {
             var token = await _authService.LoginEmail(request);
-            return Ok(ApiResponse<AuthResponse>.OkResponse(token,"Login successful","201"));
+            return Ok(ApiResponse<AuthResponse>.OkResponse(token.Value,"Login successful","201"));
         }
 
         [HttpPost("register")]
@@ -57,7 +57,7 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> RefreshToken([FromRoute] string refreshToken)
         {
             var token = await _authService.RefreshToken(refreshToken);
-            return Ok(ApiResponse<AuthResponse>.OkResponse(token, "Token refreshed successfully", "200"));
+            return Ok(ApiResponse<AuthResponse>.OkResponse(token.Value, "Token refreshed successfully", "200"));
         }
     }
 }

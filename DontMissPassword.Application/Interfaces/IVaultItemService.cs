@@ -1,5 +1,6 @@
 ﻿using DontMissPassword.Application.DTOs.VaultItemDtos;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Common.Results;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,11 +11,11 @@ namespace DontMissPassword.Application.Interfaces
 {
     public interface IVaultItemService
     {
-        Task<ItemResponse> CreateVaultItem(ItemRequest request);
-        Task<ItemResponse> UpdateVaultItem(ItemRequest request);
-        Task DeleteVaultItem(string id);
-        Task<BasePaginatedList<ItemResponse>> GetAllVaultItems(int pageIndex, int pageSize);
-        Task<BasePaginatedList<ItemResponse>> GetVaultItemsByUserLogin(int pageIndex, int pageSize);
-        Task<string> GetPasswordDecrypted(string id);
+        Task<Result<ItemResponse>> CreateVaultItem(ItemRequest request);
+        Task<Result<ItemResponse>> UpdateVaultItem(string id,ItemRequest request);
+        Task<Result> DeleteVaultItem(string id);
+        Task<Result<BasePaginatedList<ItemResponse>>> GetAllVaultItems(int pageIndex, int pageSize);
+        Task<Result<BasePaginatedList<ItemResponse>>> GetVaultItemsByUserLogin(int pageIndex, int pageSize);
+        Task<Result<string>> GetPasswordDecrypted(string id);
     }
 }
