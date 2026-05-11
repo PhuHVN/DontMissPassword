@@ -1,4 +1,5 @@
-﻿using DontMissPassword.Domain.Entities;
+﻿using DontMissPassword.Domain.Common.Results;
+using DontMissPassword.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,6 @@ namespace DontMissPassword.Application.Interfaces
 {
     public interface IUserService
     {
-        Task<Account> GetUserIdLoginsAsync();
+        Task<Result<Account>> GetUserIdLoginsAsync();
     }
 }

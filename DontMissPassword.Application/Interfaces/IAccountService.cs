@@ -1,5 +1,6 @@
 ﻿using DontMissPassword.Application.DTOs.AccountDtos;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Common.Results;
 using DontMissPassword.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -11,10 +12,10 @@ namespace DontMissPassword.Application.Interfaces
 {
     public interface IAccountService
     {
-        Task<AccountResponse> CreateAccount(AccountRequest request);
-        Task<AccountResponse> UpdateAccount(AccountRequest request);
-        Task<AccountResponse> GetAccountById(string id);
-        Task<BasePaginatedList<AccountResponse>> GetAllAccounts(int pageIndex, int pageSize);
-        Task DeleteAccount(string id);
+        Task<Result<AccountResponse>> CreateAccount(AccountRequest request);
+        Task<Result<AccountResponse>> UpdateAccount(AccountRequest request);
+        Task<Result<AccountResponse>> GetAccountById(string id);
+        Task<Result<BasePaginatedList<AccountResponse>>> GetAllAccounts(int pageIndex, int pageSize);
+        Task<Result> DeleteAccount(string id);
     }
 }
