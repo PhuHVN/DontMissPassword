@@ -2,11 +2,8 @@
 using DontMissPassword.Application.DTOs.AccountDtos;
 using DontMissPassword.Application.Interfaces;
 using DontMissPassword.Domain.Abstractions;
-using DontMissPassword.Domain.Common.Results;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Security.Cryptography;
 
 namespace DontMissPassword.API.Controllers
 {
@@ -25,6 +22,10 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> CreateAccount(AccountRequest request)
         {
             var result = await _accountService.CreateAccount(request);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<AccountResponse>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account created successfully.", "201"));
         }
 
@@ -33,6 +34,10 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> GetAccountById(string id)
         {
             var result = await _accountService.GetAccountById(id);
+            if (result.IsFailure)
+            {
+                return NotFound(ApiResponse<AccountResponse>.NotFoundResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account retrieved successfully.", "200"));
         }
 
@@ -40,8 +45,12 @@ namespace DontMissPassword.API.Controllers
         [SwaggerOperation(summary: "Get all accounts", description: "Retrieves a paginated list of all accounts.")]
         public async Task<IActionResult> GetAllAccounts(int pageIndex = 1, int pageSize = 10)
         {
-         
+
             var result = await _accountService.GetAllAccounts(pageIndex, pageSize);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<BasePaginatedList<AccountResponse>>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<BasePaginatedList<AccountResponse>>.OkResponse(result.Value, "Accounts retrieved successfully.", "200"));
         }
 
@@ -50,6 +59,10 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> UpdateAccount(AccountRequest request)
         {
             var result = await _accountService.UpdateAccount(request);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<AccountResponse>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<AccountResponse>.OkResponse(result.Value, "Account updated successfully.", "200"));
         }
 

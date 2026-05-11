@@ -24,24 +24,40 @@ namespace DontMissPassword.API.Controllers
         public async Task<IActionResult> GetAllVaultItems(int pageIndex = 1, int pageSize = 10)
         {
             var result = await _service.GetAllVaultItems(pageIndex, pageSize);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<BasePaginatedList<ItemResponse>>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result.Value, "Get all vault items successfully", "200"));
         }
         [HttpGet]
         public async Task<IActionResult> GetVaultItemsByAccountLogin(int pageIndex = 1, int pageSize = 10)
         {
             var result = await _service.GetVaultItemsByUserLogin(pageIndex, pageSize);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<BasePaginatedList<ItemResponse>>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result.Value, "Get vault items by account login successfully", "200"));
         }
         [HttpGet("decrypt")]
         public async Task<IActionResult> GetDecryptedVaultItemsByAccountLogin(string id)
         {
             var result = await _service.GetPasswordDecrypted(id);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<string>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<string>.OkResponse(result.Value, "Get decrypted vault items by account login successfully", "200"));
         }
         [HttpPost]
         public async Task<IActionResult> CreateVaultItem([FromBody] ItemRequest request)
         {
             var result = await _service.CreateVaultItem(request);
+            if (result.IsFailure)
+            {
+                return BadRequest(ApiResponse<ItemResponse>.BadRequestResponse(result.Error.Message));
+            }
             return Ok(ApiResponse<ItemResponse>.OkResponse(result.Value, "Vault item created successfully", "201"));
         }
     }

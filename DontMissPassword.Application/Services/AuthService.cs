@@ -30,11 +30,11 @@ namespace DontMissPassword.Application.Services
         }
         public async Task<Result<AuthResponse>> LoginEmail(AuthRequest request)
         {
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            if (string.IsNullOrEmpty(request.EmailOrUsername) || string.IsNullOrEmpty(request.Password))
             {
                 return Result<AuthResponse>.Fail("InvalidInput", "Email and password must be provided.");
             }
-            var requestEmail = request.Email.Trim().ToLower();
+            var requestEmail = request.EmailOrUsername.Trim();
             var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail && x.Status == Domain.Enums.StatusEnum.Active);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
@@ -55,11 +55,12 @@ namespace DontMissPassword.Application.Services
             };
             await _unitOfWork.GetRepository<RefreshToken>().AddAsync(refreshTokenEntity);
             await _unitOfWork.SaveChangesAsync();
-            return Result<AuthResponse>.Success(new AuthResponse
+            var rs = new AuthResponse
             {
                 Token = token,
                 RefreshToken = refreshToken
-            });
+            };
+            return Result<AuthResponse>.Success(rs);
         }
         public async Task<Result<string>> RegisterByUsername(AccountRequest request)
         {
