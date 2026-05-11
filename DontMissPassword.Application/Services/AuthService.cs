@@ -86,8 +86,13 @@ namespace DontMissPassword.Application.Services
                 Status = Domain.Enums.StatusEnum.Active,
                 CreatedAt = DateTime.UtcNow
             };
+            
             await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
             await _unitOfWork.SaveChangesAsync();
+            await _vaultService.CreateVault(new VaultRequest
+            {
+                AccountId = newUser.Id,
+            });
             return Result<string>.Success(requestUsername);
         }
         public async Task<Result<string>> Register(AccountRequest request)
