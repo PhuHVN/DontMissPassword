@@ -78,13 +78,6 @@ namespace DontMissPassword.Application.Services
             return Result.Success();
         }
 
-        public async Task<Result<BasePaginatedList<ItemResponse>>> GetAllVaultItems(int pageIndex, int pageSize)
-        {
-            var query = _unitOfWork.GetRepository<VaultItem>().Entity;
-            var rs = await _unitOfWork.GetRepository<VaultItem>().GetPagging(query, pageIndex, pageSize);
-            return Result<BasePaginatedList<ItemResponse>>.Success(_mapper.Map<BasePaginatedList<ItemResponse>>(rs));
-        }
-
         public async Task<Result<string>> GetPasswordDecrypted(string id)
         {
             var user = await _userService.GetUserIdLoginsAsync();

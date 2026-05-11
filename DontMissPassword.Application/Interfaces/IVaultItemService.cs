@@ -14,7 +14,6 @@ namespace DontMissPassword.Application.Interfaces
         Task<Result<ItemResponse>> CreateVaultItem(ItemRequest request);
         Task<Result<ItemResponse>> UpdateVaultItem(string id,ItemRequest request);
         Task<Result> DeleteVaultItem(string id);
-        Task<Result<BasePaginatedList<ItemResponse>>> GetAllVaultItems(int pageIndex, int pageSize);
         Task<Result<BasePaginatedList<ItemResponse>>> GetVaultItemsByUserLogin(int pageIndex, int pageSize);
         Task<Result<string>> GetPasswordDecrypted(string id);
     }

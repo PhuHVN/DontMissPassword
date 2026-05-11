@@ -20,16 +20,6 @@ namespace DontMissPassword.API.Controllers
             _service = service;
         }
 
-        [HttpGet("admin")]
-        public async Task<IActionResult> GetAllVaultItems(int pageIndex = 1, int pageSize = 10)
-        {
-            var result = await _service.GetAllVaultItems(pageIndex, pageSize);
-            if (result.IsFailure)
-            {
-                return BadRequest(ApiResponse<BasePaginatedList<ItemResponse>>.BadRequestResponse(result.Error.Message));
-            }
-            return Ok(ApiResponse<BasePaginatedList<ItemResponse>>.OkResponse(result.Value, "Get all vault items successfully", "200"));
-        }
         [HttpGet]
         public async Task<IActionResult> GetVaultItemsByAccountLogin(int pageIndex = 1, int pageSize = 10)
         {
@@ -48,6 +38,12 @@ namespace DontMissPassword.API.Controllers
             {
                 return BadRequest(ApiResponse<string>.BadRequestResponse(result.Error.Message));
             }
+
+            // Add security headers to prevent caching of sensitive password data
+            Response.Headers.Add("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            Response.Headers.Add("Pragma", "no-cache");
+            Response.Headers.Add("Expires", "0");
+
             return Ok(ApiResponse<string>.OkResponse(result.Value, "Get decrypted vault items by account login successfully", "200"));
         }
         [HttpPost]
