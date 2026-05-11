@@ -4,7 +4,9 @@ using DontMissPassword.Application.DTOs.AuthDtos;
 using DontMissPassword.Application.DTOs.VaultDtos;
 using DontMissPassword.Application.Interfaces;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Common.Results;
 using DontMissPassword.Domain.Entities;
+using DontMissPassword.Domain.Enums;
 using System.Text.RegularExpressions;
 
 namespace DontMissPassword.Application.Services
@@ -26,18 +28,18 @@ namespace DontMissPassword.Application.Services
             _redisService = redisService;
             _mapper = mapper;
         }
-        public async Task<AuthResponse> LoginEmail(AuthRequest request)
+        public async Task<Result<AuthResponse>> LoginEmail(AuthRequest request)
         {
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            if (string.IsNullOrEmpty(request.EmailOrUsername) || string.IsNullOrEmpty(request.Password))
             {
-                throw new ArgumentException("Email and password must be provided.");
+                return Result<AuthResponse>.Fail("InvalidInput", "Email and password must be provided.");
             }
-            var requestEmail = request.Email.Trim().ToLower();
+            var requestEmail = request.EmailOrUsername.Trim();
             var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail && x.Status == Domain.Enums.StatusEnum.Active);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
             {
-                throw new UnauthorizedAccessException("Invalid email or password.");
+                return Result<AuthResponse>.Fail("Unauthorized", "Invalid email or password.");
             }
             // Generate JWT token and refresh token
             var token = await _jwtProvider.GenerateTokenAsync(user);
@@ -53,32 +55,75 @@ namespace DontMissPassword.Application.Services
             };
             await _unitOfWork.GetRepository<RefreshToken>().AddAsync(refreshTokenEntity);
             await _unitOfWork.SaveChangesAsync();
-            return new AuthResponse
+            var rs = new AuthResponse
             {
                 Token = token,
                 RefreshToken = refreshToken
             };
+            return Result<AuthResponse>.Success(rs);
         }
-
-        public async Task<AccountResponse> Register(AccountRequest request)
+        public async Task<Result<string>> RegisterByUsername(AccountRequest request)
         {
-            if (request.Email == null || request.Password == null || request.FullName == null)
+            if (request.UsernameOrEmail == null || request.Password == null || request.FullName == null)
             {
-                throw new ArgumentException("Email, password and full name must be provided.");
+                return Result<string>.Fail("InvalidInput", "Username, password and full name must be provided.");
             }
-            var requestEmail = request.Email.Trim();
-            var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail && x.Status == Domain.Enums.StatusEnum.Active);
+            var requestUsername = request.UsernameOrEmail.Trim();
+            var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestUsername);
             if (existingUser != null)
             {
-                throw new ArgumentException("Email is already in use.");
-            }
-            if (!Regex.IsMatch(requestEmail, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-            {
-                throw new ArgumentException("Invalid email format.");
+                return Result<string>.Fail("EmailAlreadyInUse", "An account with this email already exists.");
             }
             if (request.Password.Length < 6)
             {
-                throw new ArgumentException("Password must be at least 6 characters long.");
+                return Result<string>.Fail("WeakPassword", "Password must be at least 6 characters long.");
+            }
+            var newUser = new Account
+            {
+                Email = requestUsername,
+                Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                FullName = request.FullName,
+                Status = Domain.Enums.StatusEnum.Active,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
+            await _unitOfWork.SaveChangesAsync();
+            return Result<string>.Success(requestUsername);
+        }
+        public async Task<Result<string>> Register(AccountRequest request)
+        {
+            if (request.UsernameOrEmail == null || request.Password == null || request.FullName == null)
+            {
+                return Result<string>.Fail("InvalidInput", "Email, password and full name must be provided.");
+            }
+            var requestEmail = request.UsernameOrEmail.Trim();
+            var existingUser = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == requestEmail);
+            if (existingUser != null && existingUser.Status == StatusEnum.Active)
+            {
+                return Result<string>.Fail("EmailAlreadyInUse", "An account with this email already exists.");
+            }
+            if (existingUser != null && existingUser.Status == StatusEnum.Pending)
+            {
+                //remove old otp and resend new otp to email
+                await _redisService.RemoveOtpAsync(requestEmail);
+                var newOtp = _redisService.GenerateOTP();
+                await _redisService.StoreOtpAsync(requestEmail, newOtp, TimeSpan.FromMinutes(5));
+                await _emailService.SendOtpAsync(requestEmail, newOtp);
+                return Result<string>.Success(requestEmail);
+            }
+            if (existingUser != null && existingUser.Status == StatusEnum.Inactive)
+            {
+                return Result<string>.Fail("InactiveAccount", "An account with this email is inactive. Please contact support for assistance.");
+            }
+
+            //if email not exist, create new account with pending status and send otp to email
+            if (!Regex.IsMatch(requestEmail, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                return Result<string>.Fail("InvalidEmail", "The email format is invalid.");
+            }
+            if (request.Password.Length < 6)
+            {
+                return Result<string>.Fail("WeakPassword", "Password must be at least 6 characters long.");
             }
             var newUser = new Account
             {
@@ -90,83 +135,85 @@ namespace DontMissPassword.Application.Services
             };
 
             var otp = _redisService.GenerateOTP();
-
             await _unitOfWork.BeginTransactionAsync();
             try
             {
 
                 await _unitOfWork.GetRepository<Account>().AddAsync(newUser);
                 await _unitOfWork.SaveChangesAsync();
-                // Create vault for the new user
-                await _vaultService.CreateVault(new VaultRequest
-                {
-                    AccountId = newUser.Id,
-                });
+
                 await _unitOfWork.CommitTransactionAsync();
-                await _emailService.SendOtpAsync(requestEmail, otp);
                 await _redisService.StoreOtpAsync(requestEmail, otp, TimeSpan.FromMinutes(5));
-                return _mapper.Map<AccountResponse>(newUser);
+                await _emailService.SendOtpAsync(requestEmail, otp);
+                return Result<string>.Success(requestEmail);
             }
             catch (Exception ex)
             {
                 await _unitOfWork.RollBackAsync();
-                throw new ArgumentException("An error occurred while registering the account.", ex);
+                return Result<string>.Fail("RegistrationError", "An error occurred while registering the account.");
             }
 
         }
-        public async Task ResendOtpAsync(string email)
+        public async Task<Result> ResendOtpAsync(string email)
         {
             if (string.IsNullOrEmpty(email))
             {
-                throw new ArgumentException("Email must be provided.");
+                return Result.Fail(Error.Invalid);
             }
             var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == email && x.Status == Domain.Enums.StatusEnum.Pending);
             if (user == null)
             {
-                throw new ArgumentException("Account not found or already verified.");
+                return Result.Fail(Error.NotFound);
             }
             await _redisService.RemoveOtpAsync(email);
             var otp = _redisService.GenerateOTP();
             await _emailService.SendOtpAsync(email, otp);
             await _redisService.StoreOtpAsync(email, otp, TimeSpan.FromMinutes(5));
+            return Result.Success();
         }
-        public async Task VerifyEmail(string email, string otp)
+        public async Task<Result> VerifyEmail(string email, string otp)
         {
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(otp))
             {
-                throw new ArgumentException("Email and OTP must be provided.");
+                return Result.Fail(Error.Invalid);
             }
             var storedOtp = await _redisService.RetrieveOtpAsync(email);
             if (storedOtp == null || storedOtp != otp)
             {
-                throw new UnauthorizedAccessException("Invalid OTP.");
-            } 
+                return Result.Fail(Error.Unauthorized);
+            }
             var user = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Email == email && x.Status == Domain.Enums.StatusEnum.Pending);
             if (user == null)
             {
-                throw new ArgumentException("Account not found or already verified.");
+                return Result.Fail(Error.NotFound);
             }
             user.Status = Domain.Enums.StatusEnum.Active;
+            // Create vault for the new user
+            await _vaultService.CreateVault(new VaultRequest
+            {
+                AccountId = user.Id,
+            });
             await _unitOfWork.GetRepository<Account>().UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
             await _redisService.RemoveOtpAsync(email);
+            return Result.Success();
         }
 
-        public async Task<AuthResponse> RefreshToken(string refreshToken)
+        public async Task<Result<AuthResponse>> RefreshToken(string refreshToken)
         {
             if (refreshToken == null)
             {
-                throw new ArgumentNullException("Refresh token must be provided.");
+                return Result<AuthResponse>.Fail(Error.Invalid);
             }
             var tokenEntity = await _unitOfWork.GetRepository<RefreshToken>().FindAsync(x => x.Token == refreshToken && !x.IsRevoked && x.ExpiresAt > DateTime.UtcNow);
             if (tokenEntity == null)
             {
-                throw new UnauthorizedAccessException("Invalid refresh token.");
+                return Result<AuthResponse>.Fail(Error.Unauthorized);
             }
             var account = await _unitOfWork.GetRepository<Account>().FindAsync(x => x.Id == tokenEntity.AccountId && x.Status == Domain.Enums.StatusEnum.Active);
             if (account == null)
             {
-                throw new UnauthorizedAccessException("Account not found or inactive.");
+                return Result<AuthResponse>.Fail(Error.Unauthorized);
             }
             // Generate new token and refresh token
             var newToken = await _jwtProvider.GenerateTokenAsync(account);
@@ -188,11 +235,11 @@ namespace DontMissPassword.Application.Services
                 // Save the new refresh token
                 await _unitOfWork.GetRepository<RefreshToken>().AddAsync(newTokenEntity);
                 await _unitOfWork.CommitTransactionAsync();
-                return new AuthResponse
+                return Result<AuthResponse>.Success(new AuthResponse
                 {
                     Token = newToken,
                     RefreshToken = newRefreshToken
-                };
+                });
             }
             catch (Exception e)
             {

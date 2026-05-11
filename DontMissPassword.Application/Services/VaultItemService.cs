@@ -2,6 +2,7 @@
 using DontMissPassword.Application.DTOs.VaultItemDtos;
 using DontMissPassword.Application.Interfaces;
 using DontMissPassword.Domain.Abstractions;
+using DontMissPassword.Domain.Common.Results;
 using DontMissPassword.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,21 +32,21 @@ namespace DontMissPassword.Application.Services
             _mapper = mapper;
         }
 
-        public async Task<ItemResponse> CreateVaultItem(ItemRequest request)
+        public async Task<Result<ItemResponse>> CreateVaultItem(ItemRequest request)
         {
             if(request.Username == null || request.Password == null || request.Title == null)
             {
-                throw new ArgumentException("Invalid request");
+                return Result<ItemResponse>.Fail("InvalidInput", "Username, password, and title must be provided.");
             }
             var user = await _userService.GetUserIdLoginsAsync();
-            if (user == null)
+            if (!user.IsSuccess)
             {
-                throw new ArgumentException("User not found");
-            }
-            var vault = await _unitOfWork.GetRepository<Vault>().FindAsync(x => x.AccountId == user.Id );
+                return Result<ItemResponse>.Fail("UserNotFound", "User not found.");
+            }   
+            var vault = await _unitOfWork.GetRepository<Vault>().FindAsync(x => x.AccountId == user.Value.Id );
             if (vault == null)
             {
-                throw new ArgumentException("Vault not found");
+                return Result<ItemResponse>.Fail("VaultNotFound", "Vault not found.");
             }
             var encryptedPassword = _secretDataService.EncryptData(request.Password);
             var vaultItem = new VaultItem
@@ -60,66 +61,79 @@ namespace DontMissPassword.Application.Services
             };
             await _unitOfWork.GetRepository<VaultItem>().AddAsync(vaultItem);
             await _unitOfWork.SaveChangesAsync();
-            return _mapper.Map<ItemResponse>(vaultItem);
+            return Result<ItemResponse>.Success(_mapper.Map<ItemResponse>(vaultItem));
 
         }
 
-        public async Task DeleteVaultItem(string id)
+        public async Task<Result> DeleteVaultItem(string id)
         {
             var vaultItem = await _unitOfWork.GetRepository<VaultItem>().FindAsync(x => x.Id == id && x.Status == Domain.Enums.StatusEnum.Active);
             if (vaultItem == null)
             {
-                throw new ArgumentException("Vault item not found");
+                return Result.Fail(Error.NotFound);
             }
             vaultItem.Status = Domain.Enums.StatusEnum.Inactive;
             await _unitOfWork.GetRepository<VaultItem>().UpdateAsync(vaultItem);
             await _unitOfWork.SaveChangesAsync();
+            return Result.Success();
         }
 
-        public async Task<BasePaginatedList<ItemResponse>> GetAllVaultItems(int pageIndex, int pageSize)
+        public async Task<Result<BasePaginatedList<ItemResponse>>> GetAllVaultItems(int pageIndex, int pageSize)
         {
             var query = _unitOfWork.GetRepository<VaultItem>().Entity;
             var rs = await _unitOfWork.GetRepository<VaultItem>().GetPagging(query, pageIndex, pageSize);
-            return _mapper.Map<BasePaginatedList<ItemResponse>>(rs);
+            return Result<BasePaginatedList<ItemResponse>>.Success(_mapper.Map<BasePaginatedList<ItemResponse>>(rs));
         }
 
-        public async Task<string> GetPasswordDecrypted(string id)
+        public async Task<Result<string>> GetPasswordDecrypted(string id)
         {
             var user = await _userService.GetUserIdLoginsAsync();
-            if (user == null)
+            if (!user.IsSuccess)
             {
-                throw new ArgumentException("User not found");
+                return Result<string>.Fail("UserNotFound", "User not found.");
             }
-            var vault = await _unitOfWork.GetRepository<Vault>().FindAsync(x => x.AccountId == user.Id);
+            var vault = await _unitOfWork.GetRepository<Vault>().FindAsync(x => x.AccountId == user.Value.Id);
             if (vault == null)
             {
-                throw new ArgumentException("Vault not found");
+                return Result<string>.Fail("VaultNotFound", "Vault not found.");
             }
             var vaultItems = await _unitOfWork.GetRepository<VaultItem>()
                 .FindAsync(x => x.VaultId == vault.Id && x.Id == id && x.Status == Domain.Enums.StatusEnum.Active);
             if (vaultItems == null)
             {
-                throw new ArgumentException("No vault items found");
+                return Result<string>.Fail("VaultItemNotFound", "No vault items found.");
             }
             var passwords = _secretDataService.DecryptData(vaultItems.Password, vaultItems.IV);
-            return passwords;   
+            return Result<string>.Success(passwords);
         }
 
-        public async Task<BasePaginatedList<ItemResponse>> GetVaultItemsByUserLogin(int pageIndex, int pageSize)
+        public async Task<Result<BasePaginatedList<ItemResponse>>> GetVaultItemsByUserLogin(int pageIndex, int pageSize)
         {
             var user = await _userService.GetUserIdLoginsAsync();
-            if (user == null)
+            if (!user.IsSuccess)
             {
-                throw new ArgumentException("User not found");
+                return Result<BasePaginatedList<ItemResponse>>.Fail("UserNotFound", "User not found.");
             }
-            var query = _unitOfWork.GetRepository<VaultItem>().Entity.Include(x => x.Vault).Where(x => x.Vault.AccountId == user.Id && x.Status == Domain.Enums.StatusEnum.Active);
+            var query = _unitOfWork.GetRepository<VaultItem>().Entity.Include(x => x.Vault).Where(x => x.Vault.AccountId == user.Value.Id && x.Status == Domain.Enums.StatusEnum.Active);
             var rs = await _unitOfWork.GetRepository<VaultItem>().GetPagging(query, pageIndex, pageSize);
-            return _mapper.Map<BasePaginatedList<ItemResponse>>(rs);
+            return Result<BasePaginatedList<ItemResponse>>.Success(_mapper.Map<BasePaginatedList<ItemResponse>>(rs));
         }
 
-        public Task<ItemResponse> UpdateVaultItem(ItemRequest request)
+        public async Task<Result<ItemResponse>> UpdateVaultItem(string id, ItemRequest request)
         {
-            throw new NotImplementedException();
+            var vaultItem = await _unitOfWork.GetRepository<VaultItem>().FindAsync(x => x.Id == id && x.Status == Domain.Enums.StatusEnum.Active);
+            if (vaultItem == null)
+            {
+                return Result<ItemResponse>.Fail("VaultItemNotFound", "No vault items found.");
+            }
+            var encryptedPassword = _secretDataService.EncryptData(request.Password);
+            vaultItem.Title = request.Title;
+            vaultItem.Username = request.Username;
+            vaultItem.Password = encryptedPassword.EncryptedData;
+            vaultItem.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.GetRepository<VaultItem>().UpdateAsync(vaultItem);
+            await _unitOfWork.SaveChangesAsync();
+            return Result<ItemResponse>.Success(_mapper.Map<ItemResponse>(vaultItem));
         }
     }
 }
